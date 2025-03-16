@@ -5,4 +5,12 @@ export type CreateElementProperties<T extends keyof HTMLElementTagNameMap> = {
   children?: Children;
 };
 
-export type Children = (string | HTMLElement) | HTMLElement[] | (string | HTMLElement)[];
+export type Children =
+  | (string | HTMLElement)
+  | (string[] | HTMLElement[])
+  | (string | HTMLElement)[];
+
+export type ModalProperties = {
+  children: Children;
+  onClose?: () => void;
+};
