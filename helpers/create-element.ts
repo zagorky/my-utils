@@ -1,7 +1,7 @@
 import type { CreateElementProperties } from './types/types';
 
 function createElement<T extends keyof HTMLElementTagNameMap>(
-  properties: CreateElementProperties<T>,
+  properties: CreateElementProperties<T>
 ): HTMLElementTagNameMap[T] {
   const { tag, cssClasses = [], attributes = {}, children = [] } = properties;
 
