@@ -1,51 +1,87 @@
-import { Section } from '../helpers/factory.ts';
 import { assertIsInstanceOf } from '@powwow-js/core';
 
-// types
-type RouteParameters = {
+// add init method witch takes config
+// add dynamic imports
+// make router asynchronous
+// add signal in the pages
+
+type PathType = {
   path: string;
-  view: () => HTMLElement;
+  view: (signal: AbortSignal) => Promise<HTMLElement>;
 };
 
-type MatchesParameters = {
-  route: RouteParameters;
-  isPage: boolean;
+type RouterConfig = {
+  routes: PathType[];
 };
 
-//function
-export function router(): void {
-  const routes: RouteParameters[] = [
-    { path: '/*', view: () => Section('error page') },
-    { path: '/', view: () => Section('main page') },
-  ];
+let abortController: AbortController | null = null;
 
-  const matches: MatchesParameters[] = routes.map((route) => {
-    return {
-      route: route,
-      isPage: location.pathname === route.path,
-    };
-  });
+// config
+const config: RouterConfig = {
+  routes: [
+    {
+      path: '/',
+      view: async (signal: AbortSignal): Promise<HTMLElement> => {
+        const module = await import('../pages/main/main-page.ts');
+        return module.mainPage(signal);
+      },
+    },
+    {
+      path: '/another',
+      view: async (signal: AbortSignal): Promise<HTMLElement> => {
+        const module = await import('../pages/another-page/another-page.ts');
+        return module.anotherPage(signal);
+      },
+    },
+  ],
+};
 
-  let match = matches.find((page) => page.isPage);
+// export function init(routerConfig:RouterConfig) {
+//   config = routerConfig
+//   router().then(r => r);
+// }
+
+// router
+export async function router(): Promise<void> {
+  if (abortController) {
+    abortController.abort();
+  }
+
+  abortController = new AbortController();
+  const signal = abortController.signal;
+
+  let match = config.routes.find((route) => location.pathname === route.path);
 
   if (!match) {
     match = {
-      route: routes[0],
-      isPage: true,
+      path: '/*',
+      view: async (): Promise<HTMLElement> => {
+        const module = await import('../pages/error-page/error-page.ts');
+        return module.errorPage();
+      },
     };
   }
-  const view = match.route.view();
-  document.body.replaceChildren(view);
+
+  const view = await match.view(signal);
+  if (!signal.aborted) {
+    document.body.replaceChildren(view);
+  }
 }
 
 export function navigator(url: string) {
   history.pushState(null, '', url);
-  router();
+  router().catch((error) => {
+    console.error('router error in navigator:', error);
+  });
 }
 
 // index ts
 
-window.addEventListener('popstate', router);
+window.addEventListener('popstate', () => {
+  router().catch((error) => {
+    console.error('router error:', error);
+  });
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   document.body.addEventListener('click', (event) => {
@@ -58,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
-  router();
+  router().catch((error) => {
+    console.error('router error in event listener:', error);
+  });
 });
-
-// deploy https://github.com/MikAleinik/spa-deploy
